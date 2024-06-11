@@ -47,8 +47,8 @@ module Core (
     output cosim_interrupt,
     output [63:0] cosim_cause
 );
-    wire[63:0] pc_cpu;
-    wire(63:0) satp;
+    wire[63:0] pc_cpu,mem_addr_cpu;
+    wire [63:0] satp;
     wire stall;
 
     CPU cpu(
@@ -60,12 +60,12 @@ module Core (
 
         .satp(satp),
         .stall(stall),
-        .address(wdata_mem),// o
+        .address(mem_addr_cpu),// o
         .we_mem(we_mem),// o
         .wdata_mem(wdata_mem),// o
         .wmask_mem(wmask_mem),// o
         .re_mem(re_mem),// o
-        .rdata_mem(rdata_mem),
+        .rdata_mem(data2),
 
         .if_stall(if_stall),
         .mem_stall(mem_stall),
