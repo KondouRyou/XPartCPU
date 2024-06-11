@@ -1,6 +1,6 @@
 `timescale 1ns / 1ps
 
-module AddressTranslator (
+module Translator (
     input               clk,
     input               rst,
     input               ram_en,
@@ -12,6 +12,7 @@ module AddressTranslator (
     output              finish,
     output  reg [63:0]  memory_addr1,
     output  reg [63:0]  memory_addr2
+
 );
     wire   [3:0]   satp_mode;
     wire   [43:0]  satp_ppn;

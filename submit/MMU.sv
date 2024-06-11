@@ -3,47 +3,47 @@
 `include "TimerStruct.vh"
 
 module MMU(
-
+    input           clk,
+    input           rst,
+    input   [63:0]  inst_addr_cpu,  // CPU传进来的当前pc
+    input   [63:0]  mem_addr_cpu,  // CPU传进来的mem阶段的addr
+    output  [63:0]  address1,
+    output  [63:0]  address2,
+    input           mem_write,  // CPU传来的使能信号
+    input           mem_read,   // CPU传来的使能信号
+    input   [63:0]  satp,
+    output          stall_pipeline,
 ):
 
-Core core(
-        .clk(clk),
-        .rstn(rstn),
-        .time_out(time_out),
-        .pc(pc),
-        .inst(inst),
-        .address(address_cpu),
-        .we_mem(wen_cpu),
-        .wdata_mem(wdata_cpu),
-        .wmask_mem(wmask_cpu),
-        .re_mem(ren_cpu),
-        .rdata_mem(rdata_cpu),
-        .if_request(if_request),
-        .switch_mode(switch_mode),
-        .if_stall(if_stall_final),
-        .mem_stall(mem_stall),
+    localparam SIM_UART_ADDR = 64'h10000000;
 
-        .cosim_valid(cosim_valid),
-        .cosim_pc(cosim_pc),
-	    .cosim_inst(cosim_inst),
-	    .cosim_rs1_id(cosim_rs1_id),
-	    .cosim_rs1_data(cosim_rs1_data),
-	    .cosim_rs2_id(cosim_rs2_id),
-	    .cosim_rs2_data(cosim_rs2_data),
-	    .cosim_alu(cosim_alu),
-	    .cosim_mem_addr(cosim_mem_addr),
-	    .cosim_mem_we(cosim_mem_we),
-	    .cosim_mem_wdata(cosim_mem_wdata),
-	    .cosim_mem_rdata(cosim_mem_rdata),
-	    .cosim_rd_we(cosim_rd_we),
-	    .cosim_rd_id(cosim_rd_id),
-	    .cosim_rd_data(cosim_rd_data),
-	    .cosim_br_taken(cosim_br_taken),
-	    .cosim_npc(cosim_npc),
-        .cosim_csr_info(cosim_csr_info),
-        .cosim_regs(cosim_regs),
-        .cosim_interrupt(cosim_interrupt),
-        .cosim_cause(cosim_cause)
+    wire            finish_translation;
+    wire    [63:0]  addr1;
+    wire    [63:0]  addr2;
+    wire    [63:0]  data1;
+    wire    [63:0]  data2;
+    wire            ram_we, need_trans1, need_trans2, need_trans;
+
+    assign need_trans1 = (satp[63:60] != 0);
+    assign need_trans2 = (mem_read || mem_write) && (satp[63:60] != 0) && (data_addr != SIM_UART_ADDR);
+    assign need_trans = need_trans1 || need_trans2;
+
+    Translator trans(
+        .clk(clk),
+        .rst(rst),
+        .ram_en((mem_read || mem_write) && need_trans2),
+        .satp(satp),
+        .inst_addr(inst_addr_cpu),
+        .data_addr(data_addr),
+        .memory_data1(data1),
+        .memory_data2(data2),
+        .finish(finish_translation),// o
+        .memory_addr1(address1),   // o
+        .memory_addr2(address2)    // o
     );
-    
+
+    assign inst_out = data1[31:0];
+    assign read_data = data2;
+    assign stall_pipeline = need_trans && !finish_translation;
+
 endmodule
