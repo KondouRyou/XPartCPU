@@ -36,16 +36,17 @@ module Axi_lite_Core #
     output [63:0] cosim_cause
 );
     wire [63:0] address1;
-    wire [63:0] address2;
+    wire [63:0] address_cpu;
     wire wen_cpu;
     wire ren_cpu;
     wire [63:0] wdata_cpu;
     wire [7:0] wmask_cpu;
-    wire [63:0] data1;
+    wire [31:0] inst;
     wire [63:0] rdata_cpu;
     wire if_stall;
     wire mem_stall;
     wire if_request;
+    wire inst_wait;
 
     wire clk=mem_ift.clk;
     wire rstn=mem_ift.rstn;
@@ -57,18 +58,18 @@ module Axi_lite_Core #
         .rstn(rstn),
         .time_out(time_out),
         .address1(address1),
-        .data1(data1),
-        .address2(address2),
-        .data2(rdata_cpu),
+        .inst(inst),
+        .address2(address_cpu),
         .we_mem(wen_cpu),
         .wdata_mem(wdata_cpu),
         .wmask_mem(wmask_cpu),
         .re_mem(ren_cpu),
-
+        .rdata_mem(rdata_cpu),
         .if_request(if_request),
         .switch_mode(switch_mode),
         .if_stall(if_stall_final),
         .mem_stall(mem_stall),
+        .inst_wait(inst_wait),
 
         .cosim_valid(cosim_valid),
         .cosim_pc(cosim_pc),
@@ -94,6 +95,16 @@ module Axi_lite_Core #
     );
 
     wire [63:0] inst_double;
+    wire refetch;// instwait 为1时，收到rvalid信号后把此信号置1一拍，再次触发master的ren，用于jump途中
+    reg refetch_reg;
+    always@(posedge clk)begin
+        if(inst_wait && if_info.Sr.rvalid)begin
+            refetch_reg <= 1;
+        end else if (refetch_reg)begin
+            refetch_reg <= 0;
+        end
+    end
+    assign refetch = refetch_reg;
     Mem_ift #(
         .ADDR_WIDTH(C_M_AXI_ADDR_WIDTH),
         .DATA_WIDTH(C_M_AXI_DATA_WIDTH)    
@@ -103,15 +114,14 @@ module Axi_lite_Core #
         .rstn(rstn),
         .address_cpu(address1),
         .wen_cpu(1'b0),
-        .ren_cpu(if_request),
+        .ren_cpu(if_request | refetch),
         .wdata_cpu(64'b0),
         .wmask_cpu(8'b0),
-        .rdata_cpu(inst_double),
-        .mem_stall(if_stall),
+        .rdata_cpu(inst_double),//o
+        .mem_stall(if_stall),//o
         .mem_ift(if_info.Master)
     );
-    // assign inst=pc[2]?inst_double[63:32]:inst_double[31:0];
-    assign data1 = inst_double;
+    assign inst=address1[2]?inst_double[63:32]:inst_double[31:0];
 
     reg skip_if;
     always@(posedge clk)begin
@@ -136,7 +146,7 @@ module Axi_lite_Core #
     Core2Mem_FSM mem_fsm(
         .clk(clk),
         .rstn(rstn),
-        .address_cpu(address2),
+        .address_cpu(address_cpu),
         .wen_cpu(wen_cpu_to_mem),
         .ren_cpu(ren_cpu_to_mem),
         .wdata_cpu(wdata_cpu),
@@ -155,7 +165,7 @@ module Axi_lite_Core #
         .DATA_WIDTH(C_M_AXI_DATA_WIDTH)    
     ) mmio_info();
     Core2MMIO_FSM mmio_fsm(
-        .address_cpu(address2),
+        .address_cpu(address_cpu),
         .wen_cpu(wen_cpu_to_mmio),
         .ren_cpu(ren_cpu_to_mmio),
         .wdata_cpu(wdata_cpu),
@@ -170,7 +180,7 @@ module Axi_lite_Core #
         .ren_cpu(ren_cpu),
         .mem_stall(mem_stall),
         .rdata_cpu(rdata_cpu),
-        .address_cpu(address2),
+        .address_cpu(address_cpu),
         .wen_cpu_to_mem(wen_cpu_to_mem),
         .ren_cpu_to_mem(ren_cpu_to_mem),
         .mem_stall_from_mem(mem_stall_from_mem),

@@ -1,3 +1,5 @@
+// arch/riscv/include/proc.h
+
 #include "types.h"
 
 #define NR_TASKS  (1 + 3) // 用于控制 最大线程数量 （idle 线程 + 3 内核线程）
@@ -46,3 +48,4 @@ void switch_to(struct task_struct* next);
 
 /* dummy funciton: 一个循环程序，循环输出自己的 pid 以及一个自增的局部变量*/
 void dummy();
+

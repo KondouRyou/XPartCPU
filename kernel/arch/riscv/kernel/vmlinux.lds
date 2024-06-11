@@ -4,16 +4,21 @@ OUTPUT_ARCH( "riscv" )
 /* 程序入口 */
 ENTRY( _start )
 
+MEMORY {
+    ram (wxa!ri): ORIGIN = 0x0000000080000000 + (0x200000), LENGTH = 128 * 1024 * 1024 - (0x200000)
+    ramv (wxa!ri): ORIGIN = (0xffffffe000000000) + (0x200000), LENGTH = ((0xffffffff00000000) - (0xffffffe000000000)) - (0x200000)
+}
+
 /* kernel代码起始位置 */
-BASE_ADDR = 0x80200000;
+BASE_ADDR = (0xffffffe000000000) + (0x200000);
 
 SECTIONS
 {
-    /* . 代表当前地址 */
+	/* . 代表当前地址 */
     . = BASE_ADDR;
 
     /* 记录kernel代码的起始地址 */
-    _start = .;
+    _skernel = .;
 
     /* ALIGN(0x1000) 表示4KB对齐 */
     /* _stext, _etext 分别记录了text段的起始与结束地址 */
@@ -23,44 +28,47 @@ SECTIONS
         *(.text.init)
         *(.text.entry)
         *(.text .text.*)
-        
+
         _etext = .;
-    }
+    } >ramv AT>ram
 
     .rodata : ALIGN(0x1000){
         _srodata = .;
 
+        *(.srodata .srodata.*)
         *(.rodata .rodata.*)
-        
+
         _erodata = .;
-    }
+    } >ramv AT>ram
 
     .data : ALIGN(0x1000){
         _sdata = .;
 
+        *(.sdata .sdata*)
         *(.data .data.*)
-        
+
         _edata = .;
-    }
+    } >ramv AT>ram
 
     .bss : ALIGN(0x1000){
         _sbss = .;
 
+        *(.bss.stack)
         *(.sbss .sbss.*)
         *(.bss .bss.*)
-        
-        _ebss = .;
-    }
 
+        _ebss = .;
+    } >ramv AT>ram
     /* 记录kernel代码的结束地址 */
     . = ALIGN(0x1000);
     _ekernel = .;
 
-   .stack : ALIGN(0x1000){
-       _sstack = .;
+    .stack : ALIGN(0x1000){
+        _sstack = .;
 
         *(.stack.entry)
+        *(.stack .stack.*)
 
         _estack = .;
-    }
+    } >ramv AT>ram
 }

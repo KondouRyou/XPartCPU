@@ -1,16 +1,10 @@
-C_SRC       = $(sort $(wildcard *.c))
-S_SRC       = $(sort $(wildcard *.S))
-OBJ		    = $(patsubst %.c,%.o,$(C_SRC)) $(patsubst %.S,%.o,$(S_SRC))
+C_SRC = $(sort $(wildcard *.c))
+OBJ = $(patsubst %.c,%.o,$(C_SRC))
+all: $(OBJ)
 
-# file = printk.o
+%.o : %.c
+	${GCC} ${CFLAG} -c $< #-fno-stack-protector
 
-all:$(OBJ)
-	
-%.o:%.c
-	${GCC}  ${CFLAG} -c $<
-
-%.o:%.S
-	${GCC}  ${CFLAG} -c $<
-
-clean:
+.PHONY : clean
+clean :
 	$(shell rm *.o 2>/dev/null)

@@ -11,16 +11,12 @@ struct {
 } kmem;
 
 uint64 kalloc() {
-    //printk("\nin kalloc\n");
     struct run *r;
 
-    //printk("\n1\n");
     r = kmem.freelist;
     kmem.freelist = r->next;
     
-    //printk("\nto memset\n");
-    //memset((void *)r, 0x0, PGSIZE);
-    //printk("\nmemset done\n\nkalloc done\n");
+    memset((void *)r, 0x0, PGSIZE);
     return (uint64) r;
 }
 
@@ -30,7 +26,7 @@ void kfree(uint64 addr) {
     // PGSIZE align 
     addr = addr & ~(PGSIZE - 1);
 
-    //memset((void *)addr, 0x0, (uint64)PGSIZE);
+    memset((void *)addr, 0x0, (uint64)PGSIZE);
 
     r = (struct run *)addr;
     r->next = kmem.freelist;
@@ -47,7 +43,6 @@ void kfreerange(char *start, char *end) {
 }
 
 void mm_init(void) {
-    //printk("\nin mm_init\n");
-    kfreerange(_ekernel, (char *)PHY_END);
+    kfreerange(_ekernel, (char *)(PHY_END + PA2VA_OFFSET));
     printk("...mm_init done!\n");
 }

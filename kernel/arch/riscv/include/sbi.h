@@ -15,4 +15,6 @@ struct sbiret sbi_ecall(int ext, int fid, uint64 arg0,
 			            uint64 arg3, uint64 arg4,
 			            uint64 arg5);
  
+void sbi_set_timer(uint64 stime_value);
+
 #endif

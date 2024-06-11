@@ -3,7 +3,7 @@ all:
 	${LD} -T kernel/vmlinux.lds kernel/*.o ../../init/*.o ../../lib/*.o -o ../../vmlinux 
 	$(shell test -d boot || mkdir -p boot)
 	${OBJCOPY} -O binary ../../vmlinux boot/Image
-	riscv64-linux-gnu-objdump -S ../../vmlinux > ../../vmlinux.asm
+	${OBJDUMP} -S ../../vmlinux > ../../vmlinux.asm
 	nm ../../vmlinux >  ../../System.map
 
 clean:

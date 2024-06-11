@@ -73,12 +73,12 @@ module CSRModule(
     reg [63:0] satp_reg;
     always@(posedge clk)begin
         if(rst)begin
-            satp_reg<=64'b0;
-        end else if(is_sepc_w)begin
-            satp_reg<=satp_reg;
+            satp_reg <= 64'b0;
+        end else if(is_satp_w)begin
+            satp_reg <= csr_val_wb;
         end
     end
-    wire [63:0] satp=sepc_reg;
+    wire [63:0] satp = satp_reg;
 
     reg [63:0] mcycle_reg;
     always@(posedge clk)begin
@@ -474,6 +474,7 @@ module CSRModule(
     assign cosim_csr_info.cosim_cause=except_final.ecause;
     assign cosim_csr_info.cosim_tval=except_final.etval;
     assign cosim_csr_info.csr_ret={62'b0,csr_ret};
-    assign cosim_csr_info.satp=satp;
+
+    assign cosim_csr_info.satp = satp;
 
 endmodule

@@ -35,6 +35,7 @@ package CSRStruct;
         logic [63:0] cosim_cause;
         logic [63:0] cosim_tval;
         logic [63:0] csr_ret;
+
         logic [63:0] satp;
     } CSRPack;
     

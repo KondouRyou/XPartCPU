@@ -10,8 +10,6 @@ module CPU (
     output wire [63:0] pc,                /* current pc */
     input wire [31:0] inst,               /* read inst from ram */
 
-    output wire [63:0] satp,//new
-    input wire stall,//new
     output wire [63:0] address,           /* memory address */
     output wire we_mem,                   /* write enable */
     output wire [63:0] wdata_mem,         /* write data to memory */
@@ -23,6 +21,7 @@ module CPU (
     input wire mem_stall,
     output wire if_request,
     output wire switch_mode,
+    output wire inst_wait,
 
     input TimerStruct::TimerPack time_out,
 
@@ -61,7 +60,7 @@ module CPU (
     reg [63:0] MEMWB_alu_res,EXMEM_alu_res;
     reg [63:0] MEMWB_wdata;
     reg IF_valid,IFID_valid,IDEX_valid,EXMEM_valid,MEMWB_valid;
-    reg if_request_reg,inst_wait;
+    reg if_request_reg,inst_wait_reg;
     reg [9:0] csr_decode,IDEX_csr_decode,EXMEM_csr_decode,MEMWB_csr_decode;
     reg [63:0] pc_csr;
     reg [63:0] csr_read_val,IDEX_csr_read_val,EXMEM_csr_read_val,MEMWB_csr_read_val;
@@ -97,8 +96,7 @@ module CPU (
     assign if_request = if_request_reg;
     assign ifjump = ifjump_mux;
     assign jmp_addr = EXMEM_pc + EXMEM_imm;
-
-    assign satp = cosim_csr_info.satp;
+    assign inst_wait = inst_wait_reg;
 
     assign cosim_valid=MEMWB_valid&~cosim_interrupt;
     assign cosim_pc=MEMWB_pc;      
@@ -222,17 +220,17 @@ module CPU (
 
     always @(posedge clk) begin
         if(rstn==0)begin
-            inst_wait <= 0;
+            inst_wait_reg <= 0;
         end
-        if(inst_wait == 0)begin
+        if(inst_wait_reg == 0)begin
             if(ifjump)begin
-                inst_wait <= 1;
+                inst_wait_reg <= 1;
             end
         end
     end
 
     always @(posedge clk) begin
-        if(rstn==0) begin
+        if(~rstn) begin
             IF_pc <= 64'b0;
             IFID_pc <= 64'b0;
             IDEX_pc <= 64'b0;
@@ -253,6 +251,10 @@ module CPU (
             MEMWB_valid <= 0;
         end
         else begin
+            if(if_request_reg == 1)begin
+                if_request_reg <= 0;
+            end
+            /*
             if(except_wb.epc != 0)begin
                 except_final <= except_wb;
             end
@@ -333,8 +335,7 @@ module CPU (
                             if(stall_pc == 0) begin
                                 inst_wait <= 0;
                             end
-                        end
-                        else begin
+                        end else begin
                             IFID_pc <= pc;
                             IFID_inst <= inst;
                             IFID_valid <= IF_valid;
@@ -350,7 +351,6 @@ module CPU (
                 IFID_pc <= 0;
                 IFID_inst <= 32'h13;
                 IFID_valid <= 0;
-
                 if(MEMWB_csr_decode[9] == 0)begin
                     IF_pc <= cosim_npc;
                     if_request_reg <= 1;
@@ -363,14 +363,105 @@ module CPU (
                 IDEX_csr_decode <= 0;
                 IDEX_valid <= 0;
             end
-            if(flush_EXMEM )begin
+            if(flush_EXMEM)begin
                 EXMEM_pc <= 0;
                 EXMEM_inst <= 32'h13;
                 EXMEM_decoded <= 0;
                 EXMEM_csr_decode <= 0;
                 EXMEM_valid <= 0;
             end
+            */
 
+            if(stall_EXMEM)begin
+                MEMWB_pc <= 0;
+                MEMWB_inst <= 32'h13;
+                MEMWB_decoded <= 0;
+                MEMWB_valid <= 0;
+                MEMWB_csr_decode <= 0;
+                MEMWB_csr_val <= 0;
+                except_wb.except <= 0;
+            end else begin
+                MEMWB_pc <= EXMEM_pc;
+                MEMWB_inst <= EXMEM_inst;
+                MEMWB_decoded <= EXMEM_decoded;
+                MEMWB_wdata <= MEM_rd_data;
+                MEMWB_alu_res <= EXMEM_alu_res;
+                MEMWB_imm <= EXMEM_imm;
+                MEMWB_valid <= EXMEM_valid;
+                MEMWB_csr_decode <= EXMEM_csr_decode;
+                MEMWB_csr_val <= csr_val;
+                MEMWB_csr_read_val <= EXMEM_csr_read_val;
+                except_wb <= except_mem;
+
+                EXMEM_pc <= IDEX_pc;
+                EXMEM_data_1 <= IDEX_data_1;
+                EXMEM_data_2 <= IDEX_data_2;
+                EXMEM_imm <= IDEX_imm;
+                EXMEM_inst <= IDEX_inst;
+                EXMEM_decoded <= IDEX_decoded;
+                EXMEM_alu_res <= alu_res;
+                EXMEM_valid <= IDEX_valid;
+                EXMEM_csr_decode <= IDEX_csr_decode;
+                EXMEM_csr_read_val <= IDEX_csr_read_val;
+                except_mem <= except_exe;
+
+                IDEX_pc <= IFID_pc;
+                IDEX_data_1 <= read_data_1;
+                IDEX_data_2 <= read_data_2;
+                IDEX_imm <= imm;
+                IDEX_inst <= IFID_inst;
+                IDEX_decoded <= decoded;
+                IDEX_valid <= IFID_valid;
+                IDEX_csr_decode <= csr_decode;
+                IDEX_csr_read_val <= csr_read_val;
+
+                if(if_stall||inst_wait_reg)begin
+                    IFID_pc <= 0;
+                    IFID_inst <= 32'h13;
+                    IFID_valid <= 0;
+                    if(stall_pc == 0) begin
+                        // ifjump之后，inst_wait保持为1
+                        // 直到stall_pc归零一次，即要舍弃的inst流过去，inst_wait也就归零
+                        inst_wait_reg <= 0;
+                    end
+                end else begin
+                    IFID_pc <= pc;
+                    IFID_inst <= inst;
+                    IFID_valid <= IF_valid;
+                    IF_pc <= cosim_npc;
+                    IF_valid <= 1;
+                    if_request_reg <= 1;
+                end
+            end
+
+            if(flush_IFID)begin
+                IFID_pc <= 0;
+                IFID_inst <= 32'h13;
+                IFID_valid <= 0;
+                // if(MEMWB_csr_decode[9] == 0)begin
+                //     IF_pc <= cosim_npc;
+                //     if_request_reg <= 1;
+                // end
+                IF_pc <= cosim_npc;
+                if_request_reg <= 1;
+            end
+            if(flush_IDEX)begin
+                IDEX_pc <=0;
+                IDEX_inst <= 32'h13;
+                IDEX_decoded <= 0;
+                IDEX_csr_decode <= 0;
+                IDEX_valid <= 0;                            
+                // if(stall_pc == 0) begin
+                //     inst_wait <= 0;
+                // end
+            end
+            if(flush_EXMEM)begin
+                EXMEM_pc <= 0;
+                EXMEM_inst <= 32'h13;
+                EXMEM_decoded <= 0;
+                EXMEM_csr_decode <= 0;
+                EXMEM_valid <= 0;
+            end
         end
     end
 
