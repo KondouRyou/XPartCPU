@@ -68,6 +68,17 @@ module CSRModule(
     wire is_mip_w=(csr_addr_wb==`MIP)&csr_we_wb;
     wire is_mcycle_w=(csr_addr_wb==`MCYCLE)&csr_we_wb;
     wire is_minstret_w=(csr_addr_wb==`MINSTRET)&csr_we_wb;
+    wire is_satp_w=(csr_addr_wb==`SATP)&csr_we_wb;
+
+    reg [63:0] satp_reg;
+    always@(posedge clk)begin
+        if(rst)begin
+            satp_reg<=64'b0;
+        end else if(is_sepc_w)begin
+            satp_reg<=satp_reg;
+        end
+    end
+    wire [63:0] satp=sepc_reg;
 
     reg [63:0] mcycle_reg;
     always@(posedge clk)begin
@@ -463,5 +474,6 @@ module CSRModule(
     assign cosim_csr_info.cosim_cause=except_final.ecause;
     assign cosim_csr_info.cosim_tval=except_final.etval;
     assign cosim_csr_info.csr_ret={62'b0,csr_ret};
+    assign cosim_csr_info.satp=satp;
 
 endmodule

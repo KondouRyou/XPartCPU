@@ -98,6 +98,8 @@ module CPU (
     assign ifjump = ifjump_mux;
     assign jmp_addr = EXMEM_pc + EXMEM_imm;
 
+    assign satp = cosim_csr_info.satp;
+
     assign cosim_valid=MEMWB_valid&~cosim_interrupt;
     assign cosim_pc=MEMWB_pc;      
     assign cosim_inst=MEMWB_inst;
