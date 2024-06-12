@@ -8,7 +8,7 @@ module Core (
     input wire rstn,                       /* 重置信号 */ 
 
     output wire [63:0] address1,                /* current pc */
-    input wire [31:0] inst,               /* read inst from ram */
+    input wire [63:0] data1,               /* read inst from ram */
 
     output wire [63:0] address2,           /* memory address */
     output wire we_mem,                   /* write enable */
@@ -76,6 +76,11 @@ module Core (
         end
     end
 
+    wire [31:0] inst;
+    assign inst = pc[2]?data1[63:32]:data1[31:0];
+
+    wire trans_finish;
+    wire if_stall_mmu = (cosim_csr_info.satp!= 64'b0) && !trans_finish;
 
     CPU cpu(
         .clk(clk),
@@ -91,7 +96,7 @@ module Core (
         .rdata_mem(rdata_mem),
         .if_request(if_request_cpu),
         .switch_mode(switch_mode),
-        .if_stall(if_stall | (if_request_cpu)),
+        .if_stall(if_stall | if_request_cpu | if_stall_mmu),
         .mem_stall(mem_stall_cpu),
         .inst_wait(inst_wait),
 
@@ -128,6 +133,9 @@ module Core (
         .address1(address1),
         .if_request_cpu(if_request_cpu),
         .if_request(if_request),
+        .if_stall(if_stall),
+        .data1(data1),
+        .trans_finish(trans_finish),
 
         .mem_addr(address),
         .address2(address2),

@@ -41,7 +41,7 @@ module Axi_lite_Core #
     wire ren_cpu;
     wire [63:0] wdata_cpu;
     wire [7:0] wmask_cpu;
-    wire [31:0] inst;
+    wire [63:0] data1;
     wire [63:0] rdata_cpu;
     wire if_stall;
     wire mem_stall;
@@ -58,7 +58,7 @@ module Axi_lite_Core #
         .rstn(rstn),
         .time_out(time_out),
         .address1(address1),
-        .inst(inst),
+        .data1(data1),
         .address2(address_cpu),
         .we_mem(wen_cpu),
         .wdata_mem(wdata_cpu),
@@ -121,8 +121,9 @@ module Axi_lite_Core #
         .mem_stall(if_stall),//o
         .mem_ift(if_info.Master)
     );
-    assign inst=address1[2]?inst_double[63:32]:inst_double[31:0];
-
+    // assign inst=address1[2]?inst_double[63:32]:inst_double[31:0];
+    assign data1 = inst_double;
+    
     reg skip_if;
     always@(posedge clk)begin
         if(~rstn)begin
